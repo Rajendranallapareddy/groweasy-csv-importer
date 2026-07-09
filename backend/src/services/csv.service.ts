@@ -8,18 +8,23 @@ export const csvService = {
   parseCSV(filePath: string): Promise<CSVRecord[]> {
     return new Promise((resolve, reject) => {
       const fileContent = fs.readFileSync(filePath, 'utf-8');
-      // Use the "parse" method with a type assertion to bypass the strict type check
-      const result = papa.parse<CSVRecord>(fileContent, {
+      
+      // Use Papa Parse with a callback to handle results
+      papa.parse(fileContent, {
         header: true,
         skipEmptyLines: true,
         trimHeaders: true,
         transformHeader: (header: string) => header.trim(),
-      } as any); // Type assertion to avoid strict type conflict
-
-      if (result.errors && result.errors.length > 0) {
-        logger.warn('CSV parsing errors:', result.errors);
-      }
-      resolve(result.data);
+        complete: (results: papa.ParseResult<CSVRecord>) => {
+          if (results.errors && results.errors.length > 0) {
+            logger.warn('CSV parsing errors:', results.errors);
+          }
+          resolve(results.data);
+        },
+        error: (error: Error) => {
+          reject(new AppError(`CSV parsing failed: ${error.message}`, 400));
+        },
+      });
     });
   },
 };
