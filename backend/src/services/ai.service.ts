@@ -21,7 +21,7 @@ export const aiService = {
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
     // ----------------------------------------------------------
-    // 1. Try Gemini with auto‑discovery of available models
+    // 1. Try Gemini with auto‑discovery – PRIORITIZE HIGH QUOTA MODELS
     // ----------------------------------------------------------
     if (aiConfig.geminiApiKey) {
       try {
@@ -35,17 +35,42 @@ export const aiService = {
         const models = listData.models || [];
         logger.info(`Found ${models.length} Gemini models`);
 
-        // Find the first model that supports generateContent
-        const candidateModel = models.find((m: any) =>
-          m.supportedGenerationMethods?.includes('generateContent')
-        );
-        if (!candidateModel) {
+        // ==== NEW: Priority order for models with higher free quotas ====
+        const priorityModels = [
+          'gemini-1.5-flash',      // Higher free quota
+          'gemini-1.5-pro',        // Higher free quota
+          'gemini-2.0-flash-exp',  // Lower free quota (20/day)
+          'gemini-1.0-pro',
+        ];
+
+        // Find the first priority model that supports generateContent
+        let selectedModel = null;
+        for (const priority of priorityModels) {
+          const found = models.find((m: any) => {
+            const name = m.name.split('/').pop();
+            return name === priority && m.supportedGenerationMethods?.includes('generateContent');
+          });
+          if (found) {
+            selectedModel = found;
+            break;
+          }
+        }
+
+        // Fallback to first available model if none of the priority ones work
+        if (!selectedModel) {
+          selectedModel = models.find((m: any) =>
+            m.supportedGenerationMethods?.includes('generateContent')
+          );
+        }
+
+        if (!selectedModel) {
           throw new Error('No model found that supports generateContent');
         }
-        const modelName = candidateModel.name.split('/').pop(); // extract "gemini-1.5-flash"
+
+        const modelName = selectedModel.name.split('/').pop();
         logger.info(`🟢 Using Gemini model: ${modelName}`);
 
-        // Now generate content with that model (using raw fetch to avoid SDK issues)
+        // Now generate content with that model
         const generateUrl =
           `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${aiConfig.geminiApiKey}`;
         const genRes = await fetch(generateUrl, {
