@@ -9,6 +9,9 @@ import { env } from './config/env';
 
 const app = express();
 
+// Enable trust proxy for correct IP detection behind Render's proxy
+app.set('trust proxy', 1);
+
 // Security & performance
 app.use(helmet());
 app.use(compression());
