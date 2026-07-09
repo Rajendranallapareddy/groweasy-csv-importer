@@ -12,14 +12,14 @@ export const csvService = {
         header: true,
         skipEmptyLines: true,
         trimHeaders: true,
-        transformHeader: (header) => header.trim(),
-        complete: (result) => {
+        transformHeader: (header: string) => header.trim(),
+        complete: (result: papa.ParseResult<CSVRecord>) => {
           if (result.errors.length > 0) {
             logger.warn('CSV parsing errors:', result.errors);
           }
           resolve(result.data as CSVRecord[]);
         },
-        error: (error) => {
+        error: (error: Error) => {
           reject(new AppError(`CSV parsing failed: ${error.message}`, 400));
         },
       });
